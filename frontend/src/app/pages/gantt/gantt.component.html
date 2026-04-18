@@ -1,0 +1,93 @@
+<div class="page-container">
+    <div class="page-header">
+        <h1><mat-icon>view_timeline</mat-icon> Production Gantt Chart</h1>
+        <button mat-stroked-button (click)="loadOrders()" [disabled]="isLoading"><mat-icon>refresh</mat-icon> Refresh</button>
+    </div>
+
+    <div *ngIf="isLoading" class="spinner-center"><mat-spinner diameter="48"></mat-spinner><p>Loading schedule...</p></div>
+    <div *ngIf="!isLoading && errorMsg" class="empty-state"><mat-icon>error</mat-icon><h3>{{ errorMsg }}</h3></div>
+
+    <ng-container *ngIf="!isLoading && !errorMsg && productionOrders.length">
+        <mat-card class="view-tabs-card">
+            <div class="view-tabs">
+                <button class="view-tab" [class.active]="viewMode === 'all'" (click)="viewMode='all'"><mat-icon>view_list</mat-icon> All Orders</button>
+                <button class="view-tab" [class.active]="viewMode === 'single'" (click)="viewMode='single'"><mat-icon>zoom_in</mat-icon> Single Order</button>
+            </div>
+        </mat-card>
+
+        <!-- All Orders View -->
+        <ng-container *ngIf="viewMode === 'all'">
+            <div class="filter-bar">
+                <span class="filter-label">Filter by status:</span>
+                <button *ngFor="let s of uniqueStatuses" class="filter-btn" [class.active]="filterStatus === s" (click)="filterStatus = s">{{ s }}</button>
+            </div>
+            <mat-card class="gantt-card">
+                <mat-card-header><mat-card-title>All Production Orders</mat-card-title></mat-card-header>
+                <mat-card-content>
+                    <div class="gantt-scroll-container">
+                        <div class="gantt-inner" style="min-width:900px">
+                            <div class="gantt-time-axis">
+                                <div class="gantt-label-col"></div>
+                                <div class="gantt-track-col"><div class="time-markers"><div *ngFor="let m of allTimeMarkers" class="time-marker" [style.left.%]="m.pct"><div class="time-tick"></div><span>{{ m.label }}</span></div></div></div>
+                            </div>
+                            <ng-container *ngFor="let g of allGantts">
+                                <ng-container *ngIf="filterStatus === 'ALL' || g.order.status === filterStatus">
+                                    <div class="gantt-order-header" (click)="onOrderSelect(g.order.productionOrderId)">
+                                        <div class="gantt-label-col order-label-cell"><div class="order-id-label">{{ g.order.productionOrderId }}</div><div class="order-meta-label">{{ g.order.material }} · {{ g.order.plannedQuantity }} pcs</div></div>
+                                        <div class="gantt-track-col"><div class="gantt-track order-track"><div *ngFor="let bar of g.bars" class="gantt-bar" [class.delayed]="bar.isDelayed" [style.left.%]="bar.leftPct" [style.width.%]="bar.widthPct" [style.background]="bar.color" (mouseenter)="showTooltip($event, bar)" (mouseleave)="hideTooltip()"><span class="bar-label" *ngIf="bar.widthPct > 5">{{ bar.description }}</span></div></div></div>
+                                        <div class="order-info-col"><span class="status-chip" [ngClass]="statusClass(g.order.status)">{{ g.order.status }}</span><span class="lead-time-label">{{ g.totalHours }}h</span></div>
+                                    </div>
+                                    <div *ngFor="let bar of g.bars" class="gantt-step-row">
+                                        <div class="gantt-label-col step-label-cell"><div class="step-seq-badge" [style.background]="bar.color">{{ bar.operationId }}</div><div class="step-label-text"><div class="step-name">{{ bar.description }}</div><div class="step-line">{{ bar.workCenter }}</div></div></div>
+                                        <div class="gantt-track-col"><div class="gantt-track step-track"><div class="gantt-bar step-bar" [class.delayed]="bar.isDelayed" [style.left.%]="bar.leftPct" [style.width.%]="bar.widthPct" [style.background]="bar.color" (mouseenter)="showTooltip($event, bar)" (mouseleave)="hideTooltip()"><span class="bar-label" *ngIf="bar.widthPct > 8">{{ formatDuration(bar.durationMin) }}</span></div></div></div>
+                                        <div class="order-info-col step-info-col"><span class="step-dur">{{ formatDuration(bar.durationMin) }}</span><mat-icon *ngIf="bar.isDelayed" class="delay-icon" [matTooltip]="bar.delayReason || ''">warning</mat-icon></div>
+                                    </div>
+                                    <div class="order-spacer"></div>
+                                </ng-container>
+                            </ng-container>
+                        </div>
+                    </div>
+                </mat-card-content>
+            </mat-card>
+        </ng-container>
+
+        <!-- Single Order View -->
+        <ng-container *ngIf="viewMode === 'single'">
+            <mat-card class="order-selector-card">
+                <div class="selector-row">
+                    <mat-form-field appearance="outline" style="min-width:300px">
+                        <mat-label>Select Order</mat-label>
+                        <mat-select [(value)]="selectedOrderId" (selectionChange)="onOrderSelect($event.value)">
+                            <mat-option *ngFor="let o of productionOrders" [value]="o.productionOrderId">{{ o.productionOrderId }} — {{ o.material }} ({{ o.plannedQuantity }} pcs)</mat-option>
+                        </mat-select>
+                    </mat-form-field>
+                    <span class="status-chip" [ngClass]="statusClass(getSelectedOrderStatus())">{{ getSelectedOrderStatus() }}</span>
+                </div>
+            </mat-card>
+            <mat-card class="gantt-card" *ngIf="singleGantt.length">
+                <mat-card-header><mat-card-title>Order {{ selectedOrderId }} — Step Timeline</mat-card-title></mat-card-header>
+                <mat-card-content>
+                    <div class="gantt-scroll-container">
+                        <div class="gantt-inner">
+                            <div class="gantt-time-axis"><div class="gantt-label-col"></div><div class="gantt-track-col"><div class="time-markers"><div *ngFor="let m of singleTimeMarkers" class="time-marker" [style.left.%]="m.pct"><div class="time-tick"></div><span>{{ m.label }}</span></div></div></div></div>
+                            <div *ngFor="let bar of singleGantt" class="gantt-step-row single-step-row">
+                                <div class="gantt-label-col step-label-cell"><div class="step-seq-badge" [style.background]="bar.color">{{ bar.operationId }}</div><div class="step-label-text"><div class="step-name">{{ bar.description }}</div><div class="step-line">{{ bar.workCenter }}</div></div></div>
+                                <div class="gantt-track-col"><div class="gantt-track single-track"><div class="gantt-bar single-bar" [class.delayed]="bar.isDelayed" [style.left.%]="bar.leftPct" [style.width.%]="bar.widthPct" [style.background]="bar.color" (mouseenter)="showTooltip($event, bar)" (mouseleave)="hideTooltip()"><span class="bar-label" *ngIf="bar.widthPct > 6">{{ bar.description }}</span></div></div></div>
+                                <div class="step-info-right"><span class="step-dur">{{ formatDuration(bar.durationMin) }}</span><mat-icon *ngIf="bar.isDelayed" class="delay-icon" [matTooltip]="bar.delayReason || ''">warning</mat-icon></div>
+                            </div>
+                        </div>
+                    </div>
+                </mat-card-content>
+            </mat-card>
+        </ng-container>
+    </ng-container>
+
+    <div *ngIf="tooltip.visible" class="gantt-tooltip" [style.left.px]="tooltip.x" [style.top.px]="tooltip.y">
+        <div class="tooltip-title">{{ tooltip.name }}</div>
+        <div class="tooltip-row"><span>Line:</span><span>{{ tooltip.line }}</span></div>
+        <div class="tooltip-row"><span>Start:</span><span>{{ tooltip.start }}</span></div>
+        <div class="tooltip-row"><span>End:</span><span>{{ tooltip.end }}</span></div>
+        <div class="tooltip-row"><span>Duration:</span><span>{{ tooltip.duration }}</span></div>
+        <div class="tooltip-delay" *ngIf="tooltip.delayed"><mat-icon>warning</mat-icon> {{ tooltip.delayReason || 'Delayed' }}</div>
+    </div>
+</div>

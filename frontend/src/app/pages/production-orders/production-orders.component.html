@@ -1,0 +1,249 @@
+<div class="page-container">
+    <div class="page-header">
+        <h1><mat-icon>table_chart</mat-icon> Production Orders Detail</h1>
+        <button mat-stroked-button (click)="loadData()" [disabled]="isLoading">
+            <mat-icon>refresh</mat-icon> Refresh
+        </button>
+    </div>
+
+    <div *ngIf="isLoading" class="spinner-center">
+        <mat-spinner diameter="48"></mat-spinner>
+        <p>Loading production orders...</p>
+    </div>
+
+    <div *ngIf="!isLoading && errorMsg" class="error-box">
+        <mat-icon>error</mat-icon> {{ errorMsg }}
+        <button mat-button (click)="loadData()">Retry</button>
+    </div>
+
+    <ng-container *ngIf="!isLoading && productionOrders.length">
+
+        <mat-tab-group>
+            <!-- Tab 1: Production Orders List -->
+            <mat-tab label="Production Orders">
+                <mat-card class="table-card">
+                    <mat-card-header>
+                        <mat-card-title>Production Orders (AUFK / AFKO)</mat-card-title>
+                        <mat-card-subtitle>
+                            {{ productionOrders.length }} orders generated from sales orders with lot size splitting
+                        </mat-card-subtitle>
+                    </mat-card-header>
+                    <mat-card-content>
+                        <div class="table-responsive">
+                            <table mat-table [dataSource]="productionOrders" class="data-table">
+                                <ng-container matColumnDef="prodOrderId">
+                                    <th mat-header-cell *matHeaderCellDef>Prod Order ID</th>
+                                    <td mat-cell *matCellDef="let po"><strong>{{ po.productionOrderId }}</strong></td>
+                                </ng-container>
+                                <ng-container matColumnDef="salesOrderId">
+                                    <th mat-header-cell *matHeaderCellDef>Sales Order ID</th>
+                                    <td mat-cell *matCellDef="let po">{{ po.salesOrderId }}</td>
+                                </ng-container>
+                                <ng-container matColumnDef="material">
+                                    <th mat-header-cell *matHeaderCellDef>Material</th>
+                                    <td mat-cell *matCellDef="let po">{{ po.material }}</td>
+                                </ng-container>
+                                <ng-container matColumnDef="plannedQty">
+                                    <th mat-header-cell *matHeaderCellDef>Planned Qty</th>
+                                    <td mat-cell *matCellDef="let po">{{ po.plannedQuantity | number }}</td>
+                                </ng-container>
+                                <ng-container matColumnDef="basicStart">
+                                    <th mat-header-cell *matHeaderCellDef>Basic Start Date</th>
+                                    <td mat-cell *matCellDef="let po">{{ formatDate(po.basicStartDate) }}</td>
+                                </ng-container>
+                                <ng-container matColumnDef="basicFinish">
+                                    <th mat-header-cell *matHeaderCellDef>Basic Finish Date</th>
+                                    <td mat-cell *matCellDef="let po">{{ formatDate(po.basicFinishDate) }}</td>
+                                </ng-container>
+                                <ng-container matColumnDef="actualStart">
+                                    <th mat-header-cell *matHeaderCellDef>Actual Start Date (Forward)</th>
+                                    <td mat-cell *matCellDef="let po">{{ formatDate(po.actualStartDate) }}<span *ngIf="po.actualStartDate !== po.basicStartDate" class="forward-badge"> (forward)</span></td>
+                                </ng-container>
+                                <ng-container matColumnDef="actualFinish">
+                                    <th mat-header-cell *matHeaderCellDef>Actual Finish Date</th>
+                                    <td mat-cell *matCellDef="let po">{{ formatDate(po.actualFinishDate) }}</td>
+                                </ng-container>
+                                <ng-container matColumnDef="status">
+                                    <th mat-header-cell *matHeaderCellDef>Status</th>
+                                    <td mat-cell *matCellDef="let po"><span class="status-chip" [ngClass]="statusClass(po.status)">{{ po.status }}</span></td>
+                                </ng-container>
+                                <tr mat-header-row *matHeaderRowDef="prodOrdersColumns"></tr>
+                                <tr mat-row *matRowDef="let row; columns: prodOrdersColumns" (click)="onProductionOrderSelect(row.productionOrderId)" style="cursor:pointer"></tr>
+                            </table>
+                        </div>
+                        <p class="note">Note: Multiple production orders for same sales order due to fixed lot size (FO) or capacity constraints.</p>
+                    </mat-card-content>
+                </mat-card>
+            </mat-tab>
+
+            <!-- Tab 2: Operations per Production Order -->
+            <mat-tab label="Operations (Routing)">
+                <mat-card class="table-card">
+                    <mat-card-header>
+                        <mat-card-title>Operations per Production Order (AFVC / AFVV)</mat-card-title>
+                        <mat-card-subtitle>Select a production order to view its routing steps</mat-card-subtitle>
+                    </mat-card-header>
+                    <mat-card-content>
+                        <div class="selector-row">
+                            <mat-form-field appearance="outline" style="min-width: 300px;">
+                                <mat-label>Select Production Order</mat-label>
+                                <mat-select [(value)]="selectedProductionOrderId" (selectionChange)="onProductionOrderSelect($event.value)">
+                                    <mat-option *ngFor="let po of productionOrders" [value]="po.productionOrderId">
+                                        {{ po.productionOrderId }} - {{ po.material }} ({{ po.plannedQuantity }} pcs)
+                                    </mat-option>
+                                </mat-select>
+                            </mat-form-field>
+                            <span class="status-chip" [ngClass]="statusClass(selectedProductionOrder?.status || '')">
+                {{ selectedProductionOrder?.status }}
+              </span>
+                        </div>
+
+                        <div *ngIf="selectedProductionOrder?.operations?.length" class="table-responsive">
+                            <table mat-table [dataSource]="selectedProductionOrder!.operations" class="data-table">
+                                <ng-container matColumnDef="opId">
+                                    <th mat-header-cell *matHeaderCellDef>Operation ID</th>
+                                    <td mat-cell *matCellDef="let op">{{ op.operationId }}</td>
+                                </ng-container>
+                                <ng-container matColumnDef="workCenter">
+                                    <th mat-header-cell *matHeaderCellDef>Work Center</th>
+                                    <td mat-cell *matCellDef="let op">{{ op.workCenter }}</td>
+                                </ng-container>
+                                <ng-container matColumnDef="description">
+                                    <th mat-header-cell *matHeaderCellDef>Description</th>
+                                    <td mat-cell *matCellDef="let op">{{ op.description }}</td>
+                                </ng-container>
+                                <ng-container matColumnDef="setupHours">
+                                    <th mat-header-cell *matHeaderCellDef>Setup (hr)</th>
+                                    <td mat-cell *matCellDef="let op">{{ op.setupHours | number:'1.1-1' }}</td>
+                                </ng-container>
+                                <ng-container matColumnDef="processingHours">
+                                    <th mat-header-cell *matHeaderCellDef>Processing (hr)</th>
+                                    <td mat-cell *matCellDef="let op">{{ op.processingHours | number:'1.1-1' }}</td>
+                                </ng-container>
+                                <ng-container matColumnDef="totalHours">
+                                    <th mat-header-cell *matHeaderCellDef>Total (hr)</th>
+                                    <td mat-cell *matCellDef="let op">{{ op.totalHours | number:'1.1-1' }}</td>
+                                </ng-container>
+                                <ng-container matColumnDef="start">
+                                    <th mat-header-cell *matHeaderCellDef>Start Date</th>
+                                    <td mat-cell *matCellDef="let op">{{ formatDate(op.plannedStart) }}</td>
+                                </ng-container>
+                                <ng-container matColumnDef="finish">
+                                    <th mat-header-cell *matHeaderCellDef>Finish Date</th>
+                                    <td mat-cell *matCellDef="let op">{{ formatDate(op.plannedFinish) }}</td>
+                                </ng-container>
+                                <ng-container matColumnDef="delayed">
+                                    <th mat-header-cell *matHeaderCellDef>Delayed?</th>
+                                    <td mat-cell *matCellDef="let op">
+                                        <span *ngIf="op.isDelayed" class="status-chip chip-red">Yes</span>
+                                        <span *ngIf="!op.isDelayed" class="status-chip chip-green">No</span>
+                                    </td>
+                                </ng-container>
+                                <tr mat-header-row *matHeaderRowDef="operationsColumns"></tr>
+                                <tr mat-row *matRowDef="let row; columns: operationsColumns"></tr>
+                            </table>
+                        </div>
+                        <div *ngIf="!selectedProductionOrder?.operations?.length" class="empty-message">
+                            No operations found for this production order.
+                        </div>
+                    </mat-card-content>
+                </mat-card>
+            </mat-tab>
+
+            <!-- Tab 3: Component Reservations -->
+            <mat-tab label="Component Reservations (BOM)">
+                <mat-card class="table-card">
+                    <mat-card-header>
+                        <mat-card-title>Component Reservations per Production Order (RESB)</mat-card-title>
+                        <mat-card-subtitle>BOM explosion with scrap % included</mat-card-subtitle>
+                    </mat-card-header>
+                    <mat-card-content>
+                        <div class="selector-row">
+                            <mat-form-field appearance="outline" style="min-width: 300px;">
+                                <mat-label>Select Production Order</mat-label>
+                                <mat-select [(value)]="selectedProductionOrderId" (selectionChange)="onProductionOrderSelect($event.value)">
+                                    <mat-option *ngFor="let po of productionOrders" [value]="po.productionOrderId">
+                                        {{ po.productionOrderId }} - {{ po.material }} ({{ po.plannedQuantity }} pcs)
+                                    </mat-option>
+                                </mat-select>
+                            </mat-form-field>
+                        </div>
+
+                        <div *ngIf="selectedProductionOrder?.components?.length" class="table-responsive">
+                            <table mat-table [dataSource]="selectedProductionOrder!.components" class="data-table">
+                                <ng-container matColumnDef="component">
+                                    <th mat-header-cell *matHeaderCellDef>Component</th>
+                                    <td mat-cell *matCellDef="let comp">{{ comp.componentCode }}</td>
+                                </ng-container>
+                                <ng-container matColumnDef="description">
+                                    <th mat-header-cell *matHeaderCellDef>Component Description</th>
+                                    <td mat-cell *matCellDef="let comp">{{ comp.componentDescription }}</td>
+                                </ng-container>
+                                <ng-container matColumnDef="requiredQty">
+                                    <th mat-header-cell *matHeaderCellDef>Required Qty</th>
+                                    <td mat-cell *matCellDef="let comp">{{ comp.requiredQuantity | number:'1.0-0' }}</td>
+                                </ng-container>
+                                <ng-container matColumnDef="reservedQty">
+                                    <th mat-header-cell *matHeaderCellDef>Reserved Qty</th>
+                                    <td mat-cell *matCellDef="let comp">{{ comp.reservedQuantity | number:'1.0-0' }}</td>
+                                </ng-container>
+                                <ng-container matColumnDef="unit">
+                                    <th mat-header-cell *matHeaderCellDef>Unit</th>
+                                    <td mat-cell *matCellDef="let comp">{{ comp.unit }}</td>
+                                </ng-container>
+                                <ng-container matColumnDef="batch">
+                                    <th mat-header-cell *matHeaderCellDef>Batch</th>
+                                    <td mat-cell *matCellDef="let comp">{{ comp.batch || '—' }}</td>
+                                </ng-container>
+                                <ng-container matColumnDef="withdrawn">
+                                    <th mat-header-cell *matHeaderCellDef>Withdrawn?</th>
+                                    <td mat-cell *matCellDef="let comp">{{ comp.withdrawn ? 'Yes' : 'No' }}</td>
+                                </ng-container>
+                                <tr mat-header-row *matHeaderRowDef="componentsColumns"></tr>
+                                <tr mat-row *matRowDef="let row; columns: componentsColumns"></tr>
+                            </table>
+                        </div>
+                        <div *ngIf="!selectedProductionOrder?.components?.length" class="empty-message">
+                            No component reservations found for this production order.
+                        </div>
+                    </mat-card-content>
+                </mat-card>
+            </mat-tab>
+
+            <!-- Tab 4: Sales Order Confirmed Deliveries -->
+            <mat-tab label="Sales Order Confirmations">
+                <mat-card class="table-card">
+                    <mat-card-header>
+                        <mat-card-title>Confirmed Delivery Dates per Sales Order (VBEP)</mat-card-title>
+                        <mat-card-subtitle>After scheduling, the sales order schedule lines are updated</mat-card-subtitle>
+                    </mat-card-header>
+                    <mat-card-content>
+                        <div class="table-responsive">
+                            <table mat-table [dataSource]="salesOrderConfirmations" class="data-table">
+                                <ng-container matColumnDef="salesOrderId">
+                                    <th mat-header-cell *matHeaderCellDef>Sales Order ID</th>
+                                    <td mat-cell *matCellDef="let conf">{{ conf.salesOrderId }}</td>
+                                </ng-container>
+                                <ng-container matColumnDef="requestedDelivery">
+                                    <th mat-header-cell *matHeaderCellDef>Requested Delivery</th>
+                                    <td mat-cell *matCellDef="let conf">{{ conf.requestedDelivery }}</td>
+                                </ng-container>
+                                <ng-container matColumnDef="confirmedDelivery">
+                                    <th mat-header-cell *matHeaderCellDef>Confirmed Delivery (after scheduling)</th>
+                                    <td mat-cell *matCellDef="let conf">{{ conf.confirmedDelivery }}</td>
+                                </ng-container>
+                                <ng-container matColumnDef="reason">
+                                    <th mat-header-cell *matHeaderCellDef>Reason for Change</th>
+                                    <td mat-cell *matCellDef="let conf">{{ conf.reasonForChange }}</td>
+                                </ng-container>
+                                <tr mat-header-row *matHeaderRowDef="confirmationsColumns"></tr>
+                                <tr mat-row *matRowDef="let row; columns: confirmationsColumns"></tr>
+                            </table>
+                        </div>
+                    </mat-card-content>
+                </mat-card>
+            </mat-tab>
+        </mat-tab-group>
+
+    </ng-container>
+</div>

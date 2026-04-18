@@ -1,0 +1,65 @@
+<div class="page-container">
+    <div class="page-header">
+        <h1><mat-icon>upload_file</mat-icon> Upload Excel Data</h1>
+        <p>Upload an Excel file with MaterialMaster, BOM, Routing, WorkCenters, and SalesOrders sheets.</p>
+    </div>
+
+    <mat-card class="upload-card">
+        <mat-card-header>
+            <mat-card-title>Excel File Upload</mat-card-title>
+            <mat-card-subtitle>Supports .xlsx or .xls format</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+            <div class="drop-zone"
+                 [class.drag-over]="isDragOver"
+                 [class.has-file]="selectedFile"
+                 (dragover)="onDragOver($event)"
+                 (dragleave)="onDragLeave()"
+                 (drop)="onDrop($event)"
+                 (click)="fileInput.click()">
+                <input #fileInput type="file" accept=".xlsx,.xls" (change)="onFileSelect($event)" style="display:none">
+                <ng-container *ngIf="!selectedFile">
+                    <mat-icon class="upload-icon">cloud_upload</mat-icon>
+                    <p class="drop-text">Drag & drop Excel file here</p>
+                    <p class="drop-sub">or click to browse</p>
+                </ng-container>
+                <ng-container *ngIf="selectedFile">
+                    <mat-icon class="file-icon">description</mat-icon>
+                    <p class="file-name">{{ selectedFile.name }}</p>
+                    <p class="file-size">{{ formatBytes(selectedFile.size) }}</p>
+                </ng-container>
+            </div>
+
+            <div class="action-row">
+                <button mat-raised-button color="primary" (click)="upload()" [disabled]="!selectedFile || isLoading">
+                    <mat-icon>play_arrow</mat-icon> Upload & Schedule
+                </button>
+                <button mat-stroked-button (click)="clearFile()" [disabled]="!selectedFile || isLoading">
+                    <mat-icon>clear</mat-icon> Clear
+                </button>
+            </div>
+
+            <div class="loading-overlay" *ngIf="isLoading">
+                <mat-spinner diameter="36"></mat-spinner>
+                <span>Processing schedule...</span>
+            </div>
+        </mat-card-content>
+    </mat-card>
+
+    <mat-card class="info-card">
+        <mat-card-header>
+            <mat-card-title>Excel Schema Required</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+            <p>Your Excel file must contain these sheets with exact column headers:</p>
+            <ul>
+                <li><strong>MaterialMaster</strong>: Material, Description, BaseUnit, MRPType, LotSize, FixedLotSize, ProcurementType, Plant</li>
+                <li><strong>BOM</strong>: Material, Component, ComponentDescription, QuantityPerPanel, Unit, ScrapPercentage</li>
+                <li><strong>Routing</strong>: Material, OperationID, WorkCenter, Description, SetupHours, ProcessingHoursPerPanel, TeardownHours</li>
+                <li><strong>WorkCenters</strong>: WorkCenter, Plant, AvailableHoursPerDay, Shifts, BreakHours</li>
+                <li><strong>SalesOrders</strong>: SalesOrderID, CustomerCode, Material, Quantity, RequestedDeliveryDate, OrderReceived, VariantConfig, Priority</li>
+            </ul>
+            <p>Optional: Shifts, Breaks, DowntimeEvents, CustomerMaster sheets.</p>
+        </mat-card-content>
+    </mat-card>
+</div>

@@ -1,0 +1,110 @@
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+.page-header h1 {
+  font-size: 22px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+.spinner-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px;
+  gap: 16px;
+  color: #666;
+}
+
+.error-box {
+  background: #ffebee;
+  border: 1px solid #ef9a9a;
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #c62828;
+  margin-bottom: 24px;
+}
+
+.table-card {
+  margin-top: 20px;
+}
+
+.table-responsive {
+  overflow-x: auto;
+  margin-top: 16px;
+}
+
+.data-table {
+  width: 100%;
+  font-size: 13px;
+}
+.data-table th {
+  background: #f5f5f5;
+  font-weight: 600;
+  padding: 12px 8px;
+}
+.data-table td {
+  padding: 8px;
+  border-bottom: 1px solid #f0f0f0;
+}
+.data-table tr:hover td {
+  background: #f9f9f9;
+}
+
+.status-chip {
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.chip-green { background: #e8f5e9; color: #2e7d32; }
+.chip-red   { background: #ffebee; color: #c62828; }
+.chip-blue  { background: #e3f2fd; color: #1565c0; }
+.chip-grey  { background: #f5f5f5; color: #616161; }
+
+.forward-badge {
+  background: #fff3e0;
+  color: #e65100;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  margin-left: 6px;
+}
+
+.note {
+  margin-top: 16px;
+  font-size: 12px;
+  color: #666;
+  font-style: italic;
+}
+
+.selector-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.empty-message {
+  text-align: center;
+  padding: 40px;
+  color: #999;
+  font-size: 14px;
+}
+
+mat-tab-group {
+  margin-top: 16px;
+}
