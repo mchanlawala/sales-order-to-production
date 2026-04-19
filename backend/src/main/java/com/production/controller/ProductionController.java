@@ -1,9 +1,12 @@
 package com.production.controller;
 
-import com.production.domain.*;
+import com.production.agent.SchedulingAgent;
+import com.production.domain.Inspection;
+import com.production.domain.InspectionUpdateRequest;
+import com.production.domain.ParsedExcelData;
+import com.production.domain.ProductionOrder;
 import com.production.service.ExcelParserService;
 import com.production.service.ProductionOrderScheduler;
-import com.production.agent.SchedulingAgent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -11,7 +14,9 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -78,5 +83,43 @@ public class ProductionController {
         long delayed = orders.stream().filter(po -> "DELAYED".equals(po.getStatus())).count();
         summary.put("delayedOrders", delayed);
         return summary;
+    }
+
+    @PutMapping("/orders/{productionOrderId}/inspections/{inspectionId}")
+    public ResponseEntity<?> updateInspectionResult(
+            @PathVariable String productionOrderId,
+            @PathVariable String inspectionId,
+            @RequestBody InspectionUpdateRequest update) {
+
+        ProductionOrder order = lastProductionOrders.stream()
+                .filter(o -> o.getProductionOrderId().equals(productionOrderId))
+                .findFirst()
+                .orElse(null);
+        if (order == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        Inspection insp = order.getInspections().stream()
+                .filter(i -> i.getInspectionId().equals(inspectionId))
+                .findFirst()
+                .orElse(null);
+        if (insp == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        // Update fields from request
+        insp.setMeasuredValue(update.getMeasuredValue());
+        insp.setJudgment(update.getJudgment());
+        insp.setStatus(update.getStatus());
+        insp.setCompletedTime(LocalDateTime.now());
+        insp.setRemarks(update.getRemarks());
+
+        // Optional: if a required inspection fails, mark the production order as BLOCKED
+        if (Boolean.TRUE.equals(insp.getRequired()) && "FAIL".equals(insp.getJudgment())) {
+            order.setStatus("BLOCKED");
+        }
+
+        // You could also re-evaluate overall order status here
+        return ResponseEntity.ok(insp);
     }
 }

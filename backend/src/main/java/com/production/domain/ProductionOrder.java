@@ -17,6 +17,7 @@ public class ProductionOrder {
     private String status;
     private List<ProductionOrderOperation> operations;
     private List<ProductionOrderComponent> components;
+    private List<Inspection> inspections;   // <-- NEW
     private Long totalLeadTimeMinutes;
     private String delayReason;
 }

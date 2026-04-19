@@ -33,6 +33,7 @@ export interface ProductionOrder {
   status: string; // CREATED, RELEASED, DELAYED
   operations: ProductionOrderOperation[];
   components: ProductionOrderComponent[];
+  inspections?: Inspection[];
 }
 
 export interface DashboardData {
@@ -40,4 +41,27 @@ export interface DashboardData {
   totalOrders: number;
   totalPanels: number;
   recentOrders: ProductionOrder[];
+}
+
+export interface Inspection {
+  inspectionId: string;
+  operationId: number;
+  type: string;
+  description: string;
+  required: boolean;
+  specification: any;           // flexible object
+  result: any;
+  status: string;               // PENDING, IN_PROGRESS, PASSED, FAILED, SKIPPED
+  scheduledTime: string;
+  completedTime: string | null;
+  measuredValue: any;
+  judgment: string;             // PASS, FAIL, REWORK
+  remarks: string | null;
+}
+
+export interface InspectionUpdateRequest {
+  measuredValue: any;
+  judgment: string;
+  status: string;
+  remarks: string | null;
 }

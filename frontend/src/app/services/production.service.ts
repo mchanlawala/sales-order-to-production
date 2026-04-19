@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
-import { ProductionOrder, DashboardData } from '../models/production-order.model';
+import { ProductionOrder, DashboardData, Inspection, InspectionUpdateRequest } from '../models/production-order.model';
 
 @Injectable({ providedIn: 'root' })
 export class ProductionService {
@@ -26,6 +26,11 @@ export class ProductionService {
 
   getInsights(): Observable<{ insights: string }> {
     return this.http.get<{ insights: string }>(`${this.api}/insights`).pipe(catchError(this.handleError));
+  }
+
+  updateInspection(productionOrderId: string, inspectionId: string, data: InspectionUpdateRequest): Observable<Inspection> {
+    return this.http.put<Inspection>(`${this.api}/orders/${productionOrderId}/inspections/${inspectionId}`, data)
+      .pipe(catchError(this.handleError));
   }
 
   private handleError(err: HttpErrorResponse) {

@@ -1,8 +1,12 @@
 <div class="page-container">
     <div class="page-header">
-        <h1><mat-icon>table_chart</mat-icon> Production Orders Detail</h1>
+        <h1>
+            <mat-icon>table_chart</mat-icon>
+            Production Orders Detail
+        </h1>
         <button mat-stroked-button (click)="loadData()" [disabled]="isLoading">
-            <mat-icon>refresh</mat-icon> Refresh
+            <mat-icon>refresh</mat-icon>
+            Refresh
         </button>
     </div>
 
@@ -12,14 +16,14 @@
     </div>
 
     <div *ngIf="!isLoading && errorMsg" class="error-box">
-        <mat-icon>error</mat-icon> {{ errorMsg }}
+        <mat-icon>error</mat-icon>
+        {{ errorMsg }}
         <button mat-button (click)="loadData()">Retry</button>
     </div>
 
     <ng-container *ngIf="!isLoading && productionOrders.length">
-
         <mat-tab-group>
-            <!-- Tab 1: Production Orders List -->
+            <!-- ========== TAB 1: PRODUCTION ORDERS ========== -->
             <mat-tab label="Production Orders">
                 <mat-card class="table-card">
                     <mat-card-header>
@@ -31,6 +35,7 @@
                     <mat-card-content>
                         <div class="table-responsive">
                             <table mat-table [dataSource]="productionOrders" class="data-table">
+                                <!-- Columns -->
                                 <ng-container matColumnDef="prodOrderId">
                                     <th mat-header-cell *matHeaderCellDef>Prod Order ID</th>
                                     <td mat-cell *matCellDef="let po"><strong>{{ po.productionOrderId }}</strong></td>
@@ -57,7 +62,10 @@
                                 </ng-container>
                                 <ng-container matColumnDef="actualStart">
                                     <th mat-header-cell *matHeaderCellDef>Actual Start Date (Forward)</th>
-                                    <td mat-cell *matCellDef="let po">{{ formatDate(po.actualStartDate) }}<span *ngIf="po.actualStartDate !== po.basicStartDate" class="forward-badge"> (forward)</span></td>
+                                    <td mat-cell *matCellDef="let po">
+                                        {{ formatDate(po.actualStartDate) }}
+                                        <span *ngIf="po.actualStartDate !== po.basicStartDate" class="forward-badge"> (forward)</span>
+                                    </td>
                                 </ng-container>
                                 <ng-container matColumnDef="actualFinish">
                                     <th mat-header-cell *matHeaderCellDef>Actual Finish Date</th>
@@ -65,10 +73,14 @@
                                 </ng-container>
                                 <ng-container matColumnDef="status">
                                     <th mat-header-cell *matHeaderCellDef>Status</th>
-                                    <td mat-cell *matCellDef="let po"><span class="status-chip" [ngClass]="statusClass(po.status)">{{ po.status }}</span></td>
+                                    <td mat-cell *matCellDef="let po">
+                                        <span class="status-chip" [ngClass]="statusClass(po.status)">{{ po.status }}</span>
+                                    </td>
                                 </ng-container>
+                                <!-- Header and row definitions -->
                                 <tr mat-header-row *matHeaderRowDef="prodOrdersColumns"></tr>
-                                <tr mat-row *matRowDef="let row; columns: prodOrdersColumns" (click)="onProductionOrderSelect(row.productionOrderId)" style="cursor:pointer"></tr>
+                                <tr mat-row *matRowDef="let row; columns: prodOrdersColumns"
+                                    (click)="onProductionOrderSelect(row.productionOrderId)" style="cursor:pointer"></tr>
                             </table>
                         </div>
                         <p class="note">Note: Multiple production orders for same sales order due to fixed lot size (FO) or capacity constraints.</p>
@@ -76,7 +88,7 @@
                 </mat-card>
             </mat-tab>
 
-            <!-- Tab 2: Operations per Production Order -->
+            <!-- ========== TAB 2: OPERATIONS ========== -->
             <mat-tab label="Operations (Routing)">
                 <mat-card class="table-card">
                     <mat-card-header>
@@ -94,8 +106,8 @@
                                 </mat-select>
                             </mat-form-field>
                             <span class="status-chip" [ngClass]="statusClass(selectedProductionOrder?.status || '')">
-                {{ selectedProductionOrder?.status }}
-              </span>
+                                {{ selectedProductionOrder?.status }}
+                            </span>
                         </div>
 
                         <div *ngIf="selectedProductionOrder?.operations?.length" class="table-responsive">
@@ -150,7 +162,7 @@
                 </mat-card>
             </mat-tab>
 
-            <!-- Tab 3: Component Reservations -->
+            <!-- ========== TAB 3: COMPONENT RESERVATIONS ========== -->
             <mat-tab label="Component Reservations (BOM)">
                 <mat-card class="table-card">
                     <mat-card-header>
@@ -210,7 +222,7 @@
                 </mat-card>
             </mat-tab>
 
-            <!-- Tab 4: Sales Order Confirmed Deliveries -->
+            <!-- ========== TAB 4: SALES ORDER CONFIRMATIONS ========== -->
             <mat-tab label="Sales Order Confirmations">
                 <mat-card class="table-card">
                     <mat-card-header>
@@ -243,7 +255,79 @@
                     </mat-card-content>
                 </mat-card>
             </mat-tab>
-        </mat-tab-group>
 
+            <!-- ========== TAB 5: INSPECTIONS ========== -->
+            <mat-tab label="Inspections">
+                <mat-card class="table-card">
+                    <mat-card-header>
+                        <mat-card-title>Quality Inspections per Production Order</mat-card-title>
+                        <mat-card-subtitle>Required tests and measured results</mat-card-subtitle>
+                    </mat-card-header>
+                    <mat-card-content>
+                        <div class="selector-row">
+                            <mat-form-field appearance="outline" style="min-width: 300px;">
+                                <mat-label>Select Production Order</mat-label>
+                                <mat-select [(value)]="selectedProductionOrderId" (selectionChange)="onProductionOrderSelect($event.value)">
+                                    <mat-option *ngFor="let po of productionOrders" [value]="po.productionOrderId">
+                                        {{ po.productionOrderId }} - {{ po.material }} ({{ po.plannedQuantity }} pcs)
+                                    </mat-option>
+                                </mat-select>
+                            </mat-form-field>
+                        </div>
+
+                        <ng-container *ngIf="selectedProductionOrder?.inspections?.length; else noInspections">
+                            <div class="table-responsive">
+                                <table mat-table [dataSource]="selectedProductionOrder!.inspections!" class="data-table">
+                                    <ng-container matColumnDef="inspectionId">
+                                        <th mat-header-cell *matHeaderCellDef>Inspection ID</th>
+                                        <td mat-cell *matCellDef="let insp">{{ insp.inspectionId }}</td>
+                                    </ng-container>
+                                    <ng-container matColumnDef="type">
+                                        <th mat-header-cell *matHeaderCellDef>Type</th>
+                                        <td mat-cell *matCellDef="let insp">{{ insp.type }}</td>
+                                    </ng-container>
+                                    <ng-container matColumnDef="description">
+                                        <th mat-header-cell *matHeaderCellDef>Description</th>
+                                        <td mat-cell *matCellDef="let insp">{{ insp.description }}</td>
+                                    </ng-container>
+                                    <ng-container matColumnDef="scheduledTime">
+                                        <th mat-header-cell *matHeaderCellDef>Scheduled Time</th>
+                                        <td mat-cell *matCellDef="let insp">{{ formatDate(insp.scheduledTime) }}</td>
+                                    </ng-container>
+                                    <ng-container matColumnDef="status">
+                                        <th mat-header-cell *matHeaderCellDef>Status</th>
+                                        <td mat-cell *matCellDef="let insp">
+                                            <span class="status-chip" [ngClass]="inspectionStatusClass(insp.status)">{{ insp.status }}</span>
+                                        </td>
+                                    </ng-container>
+                                    <ng-container matColumnDef="judgment">
+                                        <th mat-header-cell *matHeaderCellDef>Judgment</th>
+                                        <td mat-cell *matCellDef="let insp">
+                                            <span *ngIf="insp.judgment" class="status-chip" [ngClass]="insp.judgment === 'PASS' ? 'chip-green' : 'chip-red'">
+                                                {{ insp.judgment }}
+                                            </span>
+                                            <span *ngIf="!insp.judgment">—</span>
+                                        </td>
+                                    </ng-container>
+                                    <ng-container matColumnDef="actions">
+                                        <th mat-header-cell *matHeaderCellDef>Actions</th>
+                                        <td mat-cell *matCellDef="let insp">
+                                            <button mat-icon-button color="primary" (click)="updateInspection(insp)" matTooltip="Enter result">
+                                                <mat-icon>edit_note</mat-icon>
+                                            </button>
+                                        </td>
+                                    </ng-container>
+                                    <tr mat-header-row *matHeaderRowDef="inspectionsColumns"></tr>
+                                    <tr mat-row *matRowDef="let row; columns: inspectionsColumns"></tr>
+                                </table>
+                            </div>
+                        </ng-container>
+                        <ng-template #noInspections>
+                            <div class="empty-message">No inspections defined for this production order.</div>
+                        </ng-template>
+                    </mat-card-content>
+                </mat-card>
+            </mat-tab>
+        </mat-tab-group>
     </ng-container>
 </div>

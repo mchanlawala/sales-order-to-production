@@ -9,8 +9,11 @@ import { MatTabsModule } from '@angular/material/tabs';
 import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { FormsModule } from '@angular/forms';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';              // NEW
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';      // NEW
 import { ProductionService } from '../../services/production.service';
-import { ProductionOrder } from '../../models/production-order.model';
+import { ProductionOrder, Inspection, InspectionUpdateRequest } from '../../models/production-order.model';  // NEW (add Inspection types)
+import { InspectionDialogComponent } from './inspection-dialog.component';          // NEW
 
 interface SalesOrderConfirmation {
   salesOrderId: string;
@@ -32,7 +35,9 @@ interface SalesOrderConfirmation {
     MatTableModule,
     MatTabsModule,
     MatSelectModule,
-    MatFormFieldModule
+    MatFormFieldModule,
+    MatDialogModule,          // NEW
+    MatSnackBarModule         // NEW
   ],
   templateUrl: './production-orders.component.html',
   styleUrls: ['./production-orders.component.css']
@@ -51,11 +56,16 @@ export class ProductionOrdersTableComponent implements OnInit {
   operationsColumns = ['opId', 'workCenter', 'description', 'setupHours', 'processingHours', 'totalHours', 'start', 'finish', 'delayed'];
   componentsColumns = ['component', 'description', 'requiredQty', 'reservedQty', 'unit', 'batch', 'withdrawn'];
   confirmationsColumns = ['salesOrderId', 'requestedDelivery', 'confirmedDelivery', 'reason'];
+  inspectionsColumns = ['inspectionId', 'type', 'description', 'scheduledTime', 'status', 'judgment'];  // NEW
 
   // Sales order confirmations (computed from production orders)
   salesOrderConfirmations: SalesOrderConfirmation[] = [];
 
-  constructor(private prodService: ProductionService) {}
+  constructor(
+    private prodService: ProductionService,
+    private dialog: MatDialog,          // NEW
+    private snackBar: MatSnackBar       // NEW
+  ) {}
 
   ngOnInit() {
     this.loadData();
@@ -125,6 +135,42 @@ export class ProductionOrdersTableComponent implements OnInit {
   onProductionOrderSelect(orderId: string) {
     this.selectedProductionOrderId = orderId;
     this.selectedProductionOrder = this.productionOrders.find(o => o.productionOrderId === orderId) || null;
+  }
+
+  // NEW: Open dialog to update inspection result
+  updateInspection(inspection: Inspection) {
+    const dialogRef = this.dialog.open(InspectionDialogComponent, {
+      width: '500px',
+      data: { inspection, productionOrderId: this.selectedProductionOrderId }
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result) {
+        this.prodService.updateInspection(this.selectedProductionOrderId, inspection.inspectionId, result)
+          .subscribe({
+            next: (updated) => {
+              // Update local data
+              const idx = this.selectedProductionOrder!.inspections!.findIndex(i => i.inspectionId === updated.inspectionId);
+              if (idx !== -1) this.selectedProductionOrder!.inspections![idx] = updated;
+              this.snackBar.open(`Inspection ${updated.inspectionId} updated`, 'Close', { duration: 3000 });
+              this.loadData(); // or just refresh the view
+            },
+            error: (err) => this.snackBar.open(`Error: ${err.message}`, 'Close', { duration: 4000 })
+          });
+      }
+    });
+  }
+
+  // NEW: Helper for inspection status styling
+  inspectionStatusClass(status: string): string {
+    const map: Record<string, string> = {
+      PASSED: 'chip-green',
+      FAILED: 'chip-red',
+      IN_PROGRESS: 'chip-blue',
+      PENDING: 'chip-orange',
+      SKIPPED: 'chip-grey'
+    };
+    return map[status] || 'chip-grey';
   }
 
   formatDate(dateStr: string): string {

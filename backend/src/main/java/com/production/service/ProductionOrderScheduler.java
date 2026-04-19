@@ -256,6 +256,8 @@ public class ProductionOrderScheduler {
         }
 
         po.setOperations(ops);
+        List<Inspection> inspections = generateInspections(ops, po.getPlannedQuantity());
+        po.setInspections(inspections);
         po.setBasicStartDate(idealStart);
         po.setBasicFinishDate(idealFinish);
         po.setActualStartDate(effectiveStart);
@@ -344,9 +346,16 @@ public class ProductionOrderScheduler {
         if (s == null || s.isBlank()) return DEFAULT_START;
         var m = TIME_PATTERN.matcher(s);
         if (m.find()) {
-            try { return LocalTime.parse(m.group(), TIME_FMT); } catch (Exception ignored) {}
+            try {
+                return LocalTime.parse(m.group(), TIME_FMT);
+            } catch (Exception ignored) {
+            }
         }
-        try { return LocalTime.parse(s, TIME_FMT); } catch (Exception e) { return DEFAULT_START; }
+        try {
+            return LocalTime.parse(s, TIME_FMT);
+        } catch (Exception e) {
+            return DEFAULT_START;
+        }
     }
 
     /*private LocalDateTime adjustToWorkingTime(LocalDateTime dt, WorkCenter wc) {
@@ -559,5 +568,66 @@ public class ProductionOrderScheduler {
                 ? wc.getAvailableHoursPerDay() : 16;
 
         return getShiftStart(date, wc).plusHours(hours);
+    }
+
+    private List<Inspection> generateInspections(List<ProductionOrderOperation> operations, int plannedQty) {
+        List<Inspection> list = new ArrayList<>();
+        int inspCounter = 1;
+        for (ProductionOrderOperation op : operations) {
+            Inspection insp = null;
+            switch (op.getOperationId()) {
+                case 25: // Pre-Lamination EL Test
+                    insp = new Inspection();
+                    insp.setInspectionId("INSP-" + String.format("%03d", inspCounter++));
+                    insp.setOperationId(op.getOperationId());
+                    insp.setType("EL_TEST");
+                    insp.setDescription("Pre-Lamination Electroluminescence Test");
+                    insp.setRequired(true);
+                    insp.setSpecification(Map.of(
+                            "criteria", "No micro-cracks, no broken cells, no soldering defects",
+                            "acceptanceThreshold", "0 defects"
+                    ));
+                    insp.setScheduledTime(op.getPlannedFinish());
+                    insp.setStatus("PENDING");
+                    break;
+                case 45: // Flash Test
+                    insp = new Inspection();
+                    insp.setInspectionId("INSP-" + String.format("%03d", inspCounter++));
+                    insp.setOperationId(op.getOperationId());
+                    insp.setType("FLASH_TEST");
+                    insp.setDescription("Performance Flash Test (I-V curve)");
+                    insp.setRequired(true);
+                    // extract wattage from material? For simplicity, use generic range
+                    insp.setSpecification(Map.of(
+                            "minPower", 540,
+                            "maxPower", 550,
+                            "unit", "W",
+                            "tolerancePercent", 2
+                    ));
+                    insp.setScheduledTime(op.getPlannedFinish());
+                    insp.setStatus("PENDING");
+                    break;
+                case 50: // Final EL Test
+                    insp = new Inspection();
+                    insp.setInspectionId("INSP-" + String.format("%03d", inspCounter++));
+                    insp.setOperationId(op.getOperationId());
+                    insp.setType("EL_TEST_FINAL");
+                    insp.setDescription("Final EL Test after framing");
+                    insp.setRequired(true);
+                    insp.setSpecification(Map.of(
+                            "criteria", "No new micro-cracks, no handling damage"
+                    ));
+                    insp.setScheduledTime(op.getPlannedFinish());
+                    insp.setStatus("PENDING");
+                    break;
+                default:
+                    // no inspection
+                    break;
+            }
+            if (insp != null) {
+                list.add(insp);
+            }
+        }
+        return list;
     }
 }
